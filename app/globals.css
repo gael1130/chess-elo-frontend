@@ -1,26 +1,51 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+/* These styles can be added to your globals.css file */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Chart colors */
+  --color-rating: hsl(221.2 83.2% 53.3%);
+  --color-grid: rgba(255, 255, 255, 0.1);
+  --color-text: #f3f4f6;
+  --color-background: #111827;
+  --color-card-background: #1f2937;
+  --color-card-border: #374151;
+  --color-muted-text: #9ca3af;
+  --color-input-background: #374151;
+  --color-input-border: #4b5563;
+  --color-button-background: #3b82f6;
+  --color-button-hover: #2563eb;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+/* Card styling */
+.card {
+  background-color: var(--color-card-background);
+  border-color: var(--color-card-border);
+}
+
+/* Form controls */
+input, select {
+  background-color: var(--color-input-background);
+  border-color: var(--color-input-border);
+  color: var(--color-text);
+}
+
+/* Button */
+button {
+  background-color: var(--color-button-background);
+  color: white;
+}
+
+button:hover {
+  background-color: var(--color-button-hover);
+}
+
+/* Secondary text */
+.text-muted {
+  color: var(--color-muted-text);
 }
