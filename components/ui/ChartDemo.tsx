@@ -146,7 +146,7 @@ export function Component() {
     finalRating: 0,
     change: 0,
   });
-  const [username, setUsername] = useState("eddybabe75");
+  const [username, setUsername] = useState("kalel1130");
   const [timeClass, setTimeClass] = useState("rapid");
   const [fetched, setFetched] = useState(false);
 
