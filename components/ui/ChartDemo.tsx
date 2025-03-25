@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, UserPlus, X } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
@@ -50,15 +51,43 @@ interface RatingHistoryResponse {
 interface ChartDataPoint {
   gameNumber: string;
   date: string;
-  rating: number;
+  [key: string]: string | number; // Allow dynamic player rating fields
 }
 
-const chartConfig = {
-  rating: {
-    label: "Rating",
-    color: "hsl(221.2 83.2% 53.3%)",
-  },
-} satisfies ChartConfig;
+// Interface for player data
+interface PlayerData {
+  username: string;
+  color: string;
+  totalGames: number;
+  minRating: number;
+  maxRating: number;
+  initialRating: number;
+  finalRating: number;
+  change: number;
+}
+
+// Chart colors for different players
+const PLAYER_COLORS = [
+  "hsl(221.2 83.2% 53.3%)", // Blue
+  "hsl(346.8 77.2% 49.8%)", // Red
+  "hsl(142.1 76.2% 36.3%)", // Green
+  "hsl(35.5 91.7% 54.3%)",  // Orange
+  "hsl(262.1 83.3% 57.8%)", // Purple
+  "hsl(191, 91%, 36.5%)",   // Cyan
+];
+
+const createChartConfig = (players: PlayerData[]) => {
+  const config: ChartConfig = {};
+  
+  players.forEach((player, index) => {
+    config[player.username] = {
+      label: player.username,
+      color: player.color,
+    };
+  });
+  
+  return config as ChartConfig;
+};
 
 // Function to calculate custom Y-axis ticks based on player rating range
 const getCustomTicks = (min: number, max: number) => {
@@ -133,22 +162,23 @@ const getXAxisTicks = (totalGames: number, screenIsMobile: boolean) => {
 
 export function Component() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  // Add this to your component state
   const [fetchStatus, setFetchStatus] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [playerStats, setPlayerStats] = useState({
-    username: "",
-    totalGames: 0,
-    minRating: 0,
-    maxRating: 0,
-    initialRating: 0,
-    finalRating: 0,
-    change: 0,
-  });
+  
+  // Players data array to hold multiple players
+  const [players, setPlayers] = useState<PlayerData[]>([]);
+  
+  // Form states for adding players
   const [username, setUsername] = useState("kalel1130");
   const [timeClass, setTimeClass] = useState("rapid");
   const [fetched, setFetched] = useState(false);
+  
+  // Current player being searched
+  const [currentPlayer, setCurrentPlayer] = useState<string>("");
+  
+  // Chart configuration
+  const [chartConfig, setChartConfig] = useState<ChartConfig>({});
 
   // Modified fetchRatingHistory function
   const fetchRatingHistory = async (username: string, timeClass: string) => {
@@ -235,31 +265,92 @@ export function Component() {
 
   // Process API response data
   const processApiResponse = (data: RatingHistoryResponse) => {
-    // Transform games array to chart data points
-    const processedData = data.games.map((game, index) => ({
-      gameNumber: `Game ${index + 1}`,
-      date: formatDateString(game.date),
-      rating: game.rating,
-    }));
-
-    setChartData(processedData);
-
-    // Calculate stats
+    // Calculate stats for this player
     const validRatings = data.games.map((game) => game.rating);
     const initialRating = validRatings.length > 0 ? validRatings[0] : 0;
-    const finalRating =
-      validRatings.length > 0 ? validRatings[validRatings.length - 1] : 0;
+    const finalRating = validRatings.length > 0 ? validRatings[validRatings.length - 1] : 0;
+    
+    // Get a color for this player
+    const playerIndex = players.findIndex(p => p.username === data.username);
+    const colorIndex = playerIndex >= 0 ? playerIndex : players.length;
+    const playerColor = PLAYER_COLORS[colorIndex % PLAYER_COLORS.length];
 
-    setPlayerStats({
+    // Create player stats object
+    const playerStats: PlayerData = {
       username: data.username,
+      color: playerColor,
       totalGames: data.total_games,
       minRating: data.min_rating,
       maxRating: data.max_rating,
       initialRating,
       finalRating,
       change: finalRating - initialRating,
-    });
+    };
 
+    // Update or add the player to the players array
+    if (playerIndex >= 0) {
+      // Update existing player
+      const updatedPlayers = [...players];
+      updatedPlayers[playerIndex] = playerStats;
+      setPlayers(updatedPlayers);
+    } else {
+      // Add new player
+      setPlayers([...players, playerStats]);
+    }
+    
+    // Set current player being viewed
+    setCurrentPlayer(data.username);
+
+    // Update chart data with the new player's data
+    const newPlayerData = data.games.map((game, index) => {
+      return {
+        gameNumber: `Game ${index + 1}`,
+        date: formatDateString(game.date),
+        [data.username]: game.rating
+      };
+    });
+    
+    if (players.length === 0 && playerIndex === -1) {
+      // First player, set the chart data directly
+      setChartData(newPlayerData);
+    } else {
+      // Merge with existing chart data 
+      // (this is a simplified approach - a more complex algorithm would align game numbers)
+      const maxGames = Math.max(
+        chartData.length,
+        newPlayerData.length
+      );
+      
+      const mergedData: ChartDataPoint[] = [];
+      
+      for (let i = 0; i < maxGames; i++) {
+        const existingPoint = i < chartData.length ? chartData[i] : { 
+          gameNumber: `Game ${i + 1}`, 
+          date: i < newPlayerData.length ? newPlayerData[i].date : "" 
+        };
+        
+        const newPoint = i < newPlayerData.length ? newPlayerData[i] : null;
+        
+        if (newPoint) {
+          mergedData.push({
+            ...existingPoint,
+            [data.username]: newPoint[data.username]
+          });
+        } else {
+          mergedData.push(existingPoint);
+        }
+      }
+      
+      setChartData(mergedData);
+    }
+    
+    // Update chart config with all players
+    const updatedPlayers = playerIndex >= 0 
+      ? players.map((p, i) => i === playerIndex ? playerStats : p)
+      : [...players, playerStats];
+      
+    setChartConfig(createChartConfig(updatedPlayers));
+    
     setFetched(true);
   };
 
@@ -269,11 +360,46 @@ export function Component() {
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Add a new player to the comparison
+  const handleAddPlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (username) {
       setError(null);
       fetchRatingHistory(username, timeClass);
+    }
+  };
+  
+  // Submit the first player (or replacing the only player)
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username) {
+      // Clear existing players and chart data
+      setPlayers([]);
+      setChartData([]);
+      setError(null);
+      fetchRatingHistory(username, timeClass);
+    }
+  };
+  
+  // Remove a player from the comparison
+  const handleRemovePlayer = (playerToRemove: string) => {
+    // Filter out the player to remove
+    const updatedPlayers = players.filter(p => p.username !== playerToRemove);
+    setPlayers(updatedPlayers);
+    
+    // Update chart data by removing this player's data
+    const updatedChartData = chartData.map(point => {
+      const newPoint = { ...point };
+      delete newPoint[playerToRemove];
+      return newPoint;
+    });
+    
+    setChartData(updatedChartData);
+    setChartConfig(createChartConfig(updatedPlayers));
+    
+    // If all players are removed, reset the chart
+    if (updatedPlayers.length === 0) {
+      setFetched(false);
     }
   };
 
@@ -293,13 +419,20 @@ export function Component() {
     }
   };
 
-  const isPositiveChange = playerStats.change >= 0;
-
-  // Get custom ticks for the Y axis based on player's rating range
+  // Get custom ticks for the Y axis based on all players' rating ranges
   const customTicks = getCustomTicks(
-    playerStats.minRating,
-    playerStats.maxRating
+    players.length > 0 ? Math.min(...players.map(p => p.minRating)) : 0,
+    players.length > 0 ? Math.max(...players.map(p => p.maxRating)) : 0
   );
+  
+  // Get the min and max values for more precise domain control
+  const minRating = players.length > 0 ? Math.min(...players.map(p => p.minRating)) : 0;
+  const maxRating = players.length > 0 ? Math.max(...players.map(p => p.maxRating)) : 0;
+  
+  // Calculate chart domain with some padding
+  const chartDomain = players.length > 0 
+    ? [Math.max(0, minRating - 50), maxRating + 50]
+    : [0, 0];
 
   // Check if we're on a mobile screen (width < 768px)
   const [screenIsMobile, setScreenIsMobile] = useState(false);
@@ -328,45 +461,87 @@ export function Component() {
           </CardDescription>
         </CardHeader>
         <CardContent className="py-1 px-4">
-          <form onSubmit={handleSubmit} className="flex items-end space-x-2">
-            <div className="flex-1">
-              <label className="text-xs font-medium">
-                Chess.com Username
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full mt-1 px-2 py-1 text-sm border rounded-md bg-background border-input"
-                  placeholder="Enter Chess.com username"
-                />
-              </label>
-            </div>
+          <div className="space-y-2">
+            {/* Main player search form */}
+            <form onSubmit={handleSubmit} className="flex items-end space-x-2">
+              <div className="flex-1">
+                <label className="text-xs font-medium">
+                  Chess.com Username
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="block w-full mt-1 px-2 py-1 text-sm border rounded-md bg-background border-input"
+                    placeholder="Enter Chess.com username"
+                  />
+                </label>
+              </div>
 
-            <div>
-              <label className="text-xs font-medium">
-                Time Class
-                <select
-                  value={timeClass}
-                  onChange={(e) => setTimeClass(e.target.value)}
-                  className="block w-full mt-1 px-2 py-1 text-sm border rounded-md bg-background border-input"
+              <div>
+                <label className="text-xs font-medium">
+                  Time Class
+                  <select
+                    value={timeClass}
+                    onChange={(e) => setTimeClass(e.target.value)}
+                    className="block w-full mt-1 px-2 py-1 text-sm border rounded-md bg-background border-input"
+                  >
+                    <option value="rapid">Rapid</option>
+                    <option value="blitz">Blitz</option>
+                    <option value="bullet">Bullet</option>
+                    <option value="daily">Daily</option>
+                  </select>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md flex items-center space-x-1 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Loading...' : 'Search'}
+                {!isLoading && <Search className="h-3 w-3 ml-1" />}
+              </button>
+              
+              {players.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleAddPlayer}
+                  className="px-3 py-1 text-sm bg-green-600 text-white rounded-md flex items-center space-x-1 hover:bg-green-700 focus-visible:outline-none focus-visible:ring-1 transition-colors"
+                  disabled={isLoading}
                 >
-                  <option value="rapid">Rapid</option>
-                  <option value="blitz">Blitz</option>
-                  <option value="bullet">Bullet</option>
-                  <option value="daily">Daily</option>
-                </select>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md flex items-center space-x-1 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Loading...' : 'Search'}
-              {!isLoading && <Search className="h-3 w-3 ml-1" />}
-            </button>
-          </form>
+                  Add Player
+                  <UserPlus className="h-3 w-3 ml-1" />
+                </button>
+              )}
+            </form>
+            
+            {/* Player chips for active comparisons */}
+            {players.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {players.map((player) => (
+                  <div 
+                    key={player.username}
+                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                    style={{ 
+                      backgroundColor: `${player.color}20`, 
+                      borderColor: player.color,
+                      borderWidth: '1px',
+                      color: player.color 
+                    }}
+                  >
+                    <span className="font-medium">{player.username}</span>
+                    <button
+                      onClick={() => handleRemovePlayer(player.username)}
+                      className="p-0.5 rounded-full hover:bg-black/10"
+                      aria-label={`Remove ${player.username}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -375,11 +550,13 @@ export function Component() {
         <CardHeader className="py-3 px-4 pb-1">
           <CardTitle className="text-base">
             Chess Rating History
-            {playerStats.username && ` - ${playerStats.username}`}
+            {players.length === 1 && ` - ${players[0].username}`}
+            {players.length > 1 && ` - Multiple Players Comparison`}
           </CardTitle>
           <CardDescription className="text-xs mt-0">
             {timeClass.charAt(0).toUpperCase() + timeClass.slice(1)} games
             rating progression
+            {players.length > 1 && ` - ${players.length} players`}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2 px-3">
@@ -441,37 +618,106 @@ export function Component() {
                     tickMargin={8}
                     // Use custom ticks for specific values
                     ticks={customTicks}
-                    // Set domain to include a small buffer above and below
-                    domain={[
-                      customTicks[0] - 50,
-                      customTicks[customTicks.length - 1] + 50,
-                    ]}
+                    // Set domain to include a better range for all players
+                    domain={chartDomain}
                     tick={{ fill: "var(--color-text)" }}
                   />
+                  {/* Custom tooltip to show all players' ratings */}
                   <ChartTooltip
-                    cursor={false}
-                    content={
-                      <ChartTooltipContent
-                        indicator="dot"
-                        labelFormatter={(label) => {
-                          const dataPoint = chartData.find(
-                            (item) => item.gameNumber === label
-                          );
-                          return dataPoint
-                            ? `${label} - ${dataPoint.date}`
-                            : label;
-                        }}
-                      />
-                    }
+                    cursor={{
+                      stroke: 'rgba(255, 255, 255, 0.5)',
+                      strokeWidth: 1,
+                      strokeDasharray: '3 3',
+                    }}
+                    content={(props) => {
+                      if (!props.active || !props.payload || props.payload.length === 0) {
+                        return null;
+                      }
+                      
+                      // Get the date from the first series
+                      const gameLabel = props.payload[0].payload.gameNumber;
+                      const dateLabel = props.payload[0].payload.date;
+                      
+                      return (
+                        <div className="p-2 rounded-md border shadow-md bg-background text-foreground text-sm">
+                          <div className="font-medium pb-1 mb-1 border-b">
+                            {gameLabel} - {dateLabel}
+                          </div>
+                          <div className="space-y-1">
+                            {players.map((player) => {
+                              // Find this player's rating for the current point
+                              const value = props.payload.find(
+                                (p) => p.dataKey === player.username
+                              )?.value;
+                              
+                              return (
+                                <div 
+                                  key={player.username} 
+                                  className="flex items-center gap-1.5"
+                                >
+                                  <div 
+                                    className="w-2 h-2 rounded-full" 
+                                    style={{ backgroundColor: player.color }}
+                                  />
+                                  <span className="font-medium" style={{ color: player.color }}>
+                                    {player.username}
+                                  </span>
+                                  <span className="ml-auto">
+                                    {value !== undefined ? value : 'n/a'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }}
                   />
-                  <Area
-                    dataKey="rating"
-                    type="monotone"
-                    fill="hsl(221.2 83.2% 53.3%)"
-                    fillOpacity={0.4}
-                    stroke="hsl(221.2 83.2% 53.3%)"
-                    strokeWidth={2}
-                  />
+                  
+                  {/* Render an area for each player */}
+                  {players.map((player) => (
+                    <Area
+                      key={player.username}
+                      dataKey={player.username}
+                      type="monotone"
+                      name={player.username}
+                      fill={player.color}
+                      fillOpacity={0.3}
+                      stroke={player.color}
+                      strokeWidth={1.5}
+                      activeDot={{ 
+                        stroke: player.color, 
+                        strokeWidth: 1, 
+                        r: 4, 
+                        fill: player.color 
+                      }}
+                      connectNulls={true}
+                    />
+                  ))}
+                  
+                  {/* Custom Legend for multiple players */}
+                  {players.length > 1 && (
+                    <Legend 
+                      verticalAlign="top"
+                      height={30}
+                      iconType="line"
+                      iconSize={14}
+                      wrapperStyle={{ 
+                        fontSize: '12px',
+                        paddingTop: '8px' 
+                      }}
+                      formatter={(value, entry) => {
+                        const player = players.find(p => p.username === value);
+                        if (!player) return value;
+                        
+                        return (
+                          <span style={{ color: player.color, marginRight: '8px' }}>
+                            {value}
+                          </span>
+                        );
+                      }}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </ChartContainer>
@@ -483,26 +729,29 @@ export function Component() {
         </CardContent>
         {fetched && !isLoading && !error && chartData.length > 0 && (
           <CardFooter className="pt-1 pb-3 px-4 mt-0">
-            <div className="flex w-full items-start gap-1 text-xs">
-              <div className="grid gap-1">
-                <div className="flex items-center gap-1 font-medium leading-none">
-                  {isPositiveChange ? (
-                    <>
-                      Rating increase since first game: +{playerStats.change}{" "}
-                      points <TrendingUp className="h-3 w-3 text-green-500" />
-                    </>
-                  ) : (
-                    <>
-                      Rating decrease since first game: {playerStats.change}{" "}
-                      points <TrendingDown className="h-3 w-3 text-red-500" />
-                    </>
-                  )}
+            <div className="flex flex-col w-full gap-2 text-xs text-foreground">
+              {players.map((player) => (
+                <div key={player.username} className="flex w-full items-start gap-1">
+                  <div className="grid gap-0.5 w-full">
+                    <div className="flex items-center gap-1 font-medium leading-none">
+                      <span style={{ color: player.color }}>{player.username}:</span> 
+                      {player.change >= 0 ? (
+                        <span>
+                          Rating increase since first game: <span className="text-green-500 font-medium">+{player.change} points</span> <TrendingUp className="h-3 w-3 inline text-green-500" />
+                        </span>
+                      ) : (
+                        <span>
+                          Rating decrease since first game: <span className="text-red-500 font-medium">{player.change} points</span> <TrendingDown className="h-3 w-3 inline text-red-500" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 leading-none text-muted-foreground">
+                      Range: <span style={{ color: player.color }}>{player.minRating} - {player.maxRating}</span> •
+                      Total games: {player.totalGames}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 leading-none text-muted-foreground">
-                  Range: {playerStats.minRating} - {playerStats.maxRating} •
-                  Total games: {playerStats.totalGames}
-                </div>
-              </div>
+              ))}
             </div>
           </CardFooter>
         )}
