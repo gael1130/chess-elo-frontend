@@ -160,7 +160,7 @@ export function Component() {
       // Step 1: First check if we can get the rating history directly
       // (this will work if the user exists in our database)
       const ratingResponse = await fetch(
-        `https://chess-elo-api-kalel1130.pythonanywhere.com//api/player/${username}/rating-history/?time_class=${timeClass}`
+        `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/rating-history/?time_class=${timeClass}`
       );
 
       // If player exists in the database
@@ -170,14 +170,14 @@ export function Component() {
         // Step 2: Check if there are any new games to fetch for existing player
         setFetchStatus("Checking for new games...");
         const scrapeResponse = await fetch(
-          `https://chess-elo-api-kalel1130.pythonanywhere.com//api/player/${username}/scrape-games/?only_new=true`
+          `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/scrape-games/?only_new=true`
         );
 
         if (scrapeResponse.ok) {
           // If new games were found, refresh the data
           setFetchStatus("New games found, updating...");
           const refreshResponse = await fetch(
-            `https://chess-elo-api-kalel1130.pythonanywhere.com//api/player/${username}/rating-history/?time_class=${timeClass}`
+            `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/rating-history/?time_class=${timeClass}`
           );
 
           if (refreshResponse.ok) {
@@ -198,7 +198,7 @@ export function Component() {
         );
 
         const scrapeAllResponse = await fetch(
-          `https://chess-elo-api-kalel1130.pythonanywhere.com//api/player/${username}/scrape-games/`
+          `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/scrape-games/`
         );
 
         if (!scrapeAllResponse.ok) {
@@ -212,7 +212,7 @@ export function Component() {
         // Successfully scraped data, now get the rating history
         setFetchStatus("Data obtained! Generating rating history...");
         const newDataResponse = await fetch(
-          `https://chess-elo-api-kalel1130.pythonanywhere.com//api/player/${username}/rating-history/?time_class=${timeClass}`
+          `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/rating-history/?time_class=${timeClass}`
         );
 
         if (!newDataResponse.ok) {
