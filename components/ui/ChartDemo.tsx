@@ -629,14 +629,17 @@ export function Component() {
                       strokeWidth: 1,
                       strokeDasharray: '3 3',
                     }}
-                    content={(props) => {
-                      if (!props.active || !props.payload || props.payload.length === 0) {
+                    content={(props: any) => {
+                      if (!props.active || !props.payload || !Array.isArray(props.payload) || props.payload.length === 0) {
                         return null;
                       }
                       
                       // Get the date from the first series
-                      const gameLabel = props.payload[0].payload.gameNumber;
-                      const dateLabel = props.payload[0].payload.date;
+                      const payload = props.payload[0]?.payload;
+                      if (!payload) return null;
+                      
+                      const gameLabel = payload.gameNumber;
+                      const dateLabel = payload.date;
                       
                       return (
                         <div className="p-2 rounded-md border shadow-md bg-background text-foreground text-sm">
@@ -646,9 +649,10 @@ export function Component() {
                           <div className="space-y-1">
                             {players.map((player) => {
                               // Find this player's rating for the current point
-                              const value = props.payload.find(
-                                (p) => p.dataKey === player.username
-                              )?.value;
+                              const payloadItem = props.payload.find(
+                                (p: any) => p.dataKey === player.username
+                              );
+                              const value = payloadItem?.value;
                               
                               return (
                                 <div 
