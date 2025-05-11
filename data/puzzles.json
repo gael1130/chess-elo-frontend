@@ -1,0 +1,48 @@
+{
+  "puzzles": [
+    {
+      "id": "custom001",
+      "playerColor": "white",
+      "startFEN": "r3k2r/2p2ppp/p1p1qn2/2PpP3/6b1/4PN2/PP1N1PPP/R2Q1RK1 b kq - 0 12",
+      "opponentMove": {
+        "from": "f6",
+        "to": "e4"
+      },
+      "solution": [
+        {
+          "from": "d2",
+          "to": "e4"
+        },
+        {
+          "from": "e6",
+          "to": "e4"
+        }
+      ],
+      "rating": "1100",
+      "themes": ["capture", "tactical", "knight"],
+      "gameUrl": "https://www.chess.com/game/live/138299050862"
+    },
+    {
+      "id": "custom002",
+      "playerColor": "black",
+      "startFEN": "r4rk1/1p1n1ppq/1bp1p2p/p2pP3/1P1P2B1/2P2NPP/P4P2/R2QR1K1 w - - 3 19",
+      "opponentMove": {
+        "from": "f3",
+        "to": "h4" 
+      },
+      "solution": [
+        {
+          "from": "a5",
+          "to": "b4"
+        },
+        {
+          "from": "c3",
+          "to": "b4"
+        }
+      ],
+      "rating": "1200",
+      "themes": ["capture", "pawn", "material"],
+      "gameUrl": "https://www.chess.com/game/live/138299050863"
+    }
+  ]
+}

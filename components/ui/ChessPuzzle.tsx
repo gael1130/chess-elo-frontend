@@ -1,0 +1,334 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Chessboard } from "react-chessboard";
+import { Chess } from "chess.js"; // You'll need to install chess.js
+import { Button } from "@/components/ui/button";
+import { AlertCircle, CheckCircle, RefreshCw, HelpCircle } from "lucide-react";
+import { ChessPuzzleData, PuzzleMove } from "@/data/types";
+
+interface ChessPuzzleProps {
+  puzzle: ChessPuzzleData;
+  onSolve?: () => void;
+  onFail?: () => void;
+}
+
+export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
+  // Game state
+  const [game, setGame] = useState<Chess>(new Chess());
+  const [currentSolutionIndex, setCurrentSolutionIndex] = useState(0);
+  const [status, setStatus] = useState<"initial" | "correct" | "incorrect" | "solved">("initial");
+  const [showHint, setShowHint] = useState(false);
+  const [initialMoveMade, setInitialMoveMade] = useState(false);
+  
+  // Store the opponent's move for highlighting
+  const [opponentMove, setOpponentMove] = useState<PuzzleMove | null>(null);
+  
+  // Timeout reference for animations
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Setup puzzle when it changes
+  useEffect(() => {
+    // Clear any existing timeouts
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Reset state
+    setCurrentSolutionIndex(0);
+    setStatus("initial");
+    setShowHint(false);
+    setInitialMoveMade(false);
+    
+    // Load the starting position
+    const initialGame = new Chess(puzzle.startFEN);
+    setGame(initialGame);
+    
+    // Set board orientation based on player color
+    setOpponentMove(puzzle.opponentMove);
+    
+    // Show the initial position first, then make the opponent's move
+    timeoutRef.current = setTimeout(() => {
+      try {
+        initialGame.move({
+          from: puzzle.opponentMove.from,
+          to: puzzle.opponentMove.to,
+          promotion: puzzle.opponentMove.promotion || "q"
+        });
+        
+        setGame(new Chess(initialGame.fen()));
+        setInitialMoveMade(true);
+        
+        console.log(`Made opponent's move: ${puzzle.opponentMove.from} to ${puzzle.opponentMove.to}`);
+        console.log(`New position: ${initialGame.fen()}`);
+      } catch (error) {
+        console.error("Error making opponent's move:", error);
+        
+        // If move fails, still allow the player to play
+        // (this should not happen with valid data)
+        setInitialMoveMade(true);
+      }
+    }, 1000);
+    
+    // Debug info
+    console.log("Puzzle loaded:", {
+      id: puzzle.id,
+      startFEN: puzzle.startFEN,
+      playerColor: puzzle.playerColor,
+      opponentMove: puzzle.opponentMove,
+      solution: puzzle.solution
+    });
+    
+    // Cleanup
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [puzzle]);
+
+  // Function to check if a move matches the expected solution move
+  const isCorrectMove = useCallback((move: any, expected: PuzzleMove) => {
+    return move.from === expected.from && move.to === expected.to;
+  }, []);
+
+  // Handle making a move
+  const makeMove = useCallback((move: any) => {
+    try {
+      // Try to make the move in the game
+      const result = game.move({
+        from: move.from,
+        to: move.to,
+        promotion: "q" // Always promote to queen for simplicity
+      });
+      
+      if (!result) return false;
+      
+      // Clone the game to avoid direct state mutation
+      const gameCopy = new Chess(game.fen());
+      
+      // Check if the move is correct
+      const expectedMove = puzzle.solution[currentSolutionIndex];
+      
+      if (isCorrectMove(move, expectedMove)) {
+        // Correct move!
+        const isLastMove = currentSolutionIndex + 2 >= puzzle.solution.length;
+        
+        if (isLastMove) {
+          // Puzzle solved - no more moves
+          setGame(gameCopy);
+          setStatus("solved");
+          onSolve?.();
+          return true;
+        } else {
+          // Make the opponent's next move automatically
+          const opponentMove = puzzle.solution[currentSolutionIndex + 1];
+          
+          try {
+            gameCopy.move({
+              from: opponentMove.from,
+              to: opponentMove.to,
+              promotion: opponentMove.promotion || "q"
+            });
+            
+            setGame(gameCopy);
+            setCurrentSolutionIndex(currentSolutionIndex + 2);
+            setStatus("correct");
+            setShowHint(false);
+            return true;
+          } catch (error) {
+            console.error("Error making opponent's response:", error);
+            return false;
+          }
+        }
+      } else {
+        // Incorrect move
+        setStatus("incorrect");
+        onFail?.();
+        
+        // Reset to the position after the opponent's initial move
+        resetToOpponentMove();
+        return false;
+      }
+    } catch (error) {
+      console.error("Error making move:", error);
+      return false;
+    }
+  }, [game, puzzle.solution, currentSolutionIndex, isCorrectMove, onSolve, onFail]);
+
+  // Reset to the position after the opponent's move
+  const resetToOpponentMove = useCallback(() => {
+    const resetGame = new Chess(puzzle.startFEN);
+    
+    try {
+      resetGame.move({
+        from: puzzle.opponentMove.from,
+        to: puzzle.opponentMove.to,
+        promotion: puzzle.opponentMove.promotion || "q"
+      });
+      
+      setGame(new Chess(resetGame.fen()));
+      setInitialMoveMade(true);
+    } catch (error) {
+      console.error("Error resetting to opponent's move position:", error);
+      setGame(new Chess(puzzle.startFEN));
+    }
+  }, [puzzle.startFEN, puzzle.opponentMove]);
+
+  // Handle piece drop on the board
+  const onDrop = useCallback((sourceSquare: string, targetSquare: string) => {
+    if (status === "solved" || !initialMoveMade) return false;
+    
+    return makeMove({
+      from: sourceSquare,
+      to: targetSquare
+    });
+  }, [makeMove, status, initialMoveMade]);
+
+  // Get the next move for the hint
+  const getNextMove = useCallback(() => {
+    if (currentSolutionIndex < puzzle.solution.length) {
+      return puzzle.solution[currentSolutionIndex];
+    }
+    return null;
+  }, [currentSolutionIndex, puzzle.solution]);
+
+  // Show hint
+  const handleShowHint = useCallback(() => {
+    setShowHint(true);
+  }, []);
+
+  // Reset the puzzle
+  const handleReset = useCallback(() => {
+    // Clear any existing timeouts
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    setCurrentSolutionIndex(0);
+    setStatus("initial");
+    setShowHint(false);
+    
+    // Start from the beginning
+    const resetGame = new Chess(puzzle.startFEN);
+    setGame(resetGame);
+    setInitialMoveMade(false);
+    
+    // Make the opponent's move after a delay
+    timeoutRef.current = setTimeout(() => {
+      try {
+        resetGame.move({
+          from: puzzle.opponentMove.from,
+          to: puzzle.opponentMove.to,
+          promotion: puzzle.opponentMove.promotion || "q"
+        });
+        
+        setGame(new Chess(resetGame.fen()));
+        setInitialMoveMade(true);
+      } catch (error) {
+        console.error("Error making opponent's move during reset:", error);
+        setInitialMoveMade(true);
+      }
+    }, 1000);
+  }, [puzzle.startFEN, puzzle.opponentMove]);
+
+  // Generate custom square styles for hints and highlighting
+  const customSquareStyles = useCallback(() => {
+    const styles: Record<string, React.CSSProperties> = {};
+    
+    // Highlight the hint square (only the source square in green)
+    if (showHint && status !== "solved") {
+      const nextMove = getNextMove();
+      if (nextMove) {
+        styles[nextMove.from] = { 
+          backgroundColor: "rgba(76, 175, 80, 0.4)", // Green color for the source square
+          borderRadius: "8px"
+        };
+        // No highlighting for destination square to make it more challenging
+      }
+    }
+    
+    // Highlight the opponent's move
+    if (opponentMove && initialMoveMade) {
+      styles[opponentMove.from] = { 
+        backgroundColor: "rgba(255, 235, 59, 0.3)", 
+        borderRadius: "8px" 
+      };
+      styles[opponentMove.to] = { 
+        backgroundColor: "rgba(255, 235, 59, 0.3)", 
+        borderRadius: "8px" 
+      };
+    }
+    
+    return styles;
+  }, [showHint, status, getNextMove, initialMoveMade, opponentMove]);
+
+  return (
+    <div className="flex flex-col space-y-4">
+      <div className="w-full max-w-md mx-auto">
+        <Chessboard 
+          position={game.fen()} 
+          onPieceDrop={onDrop}
+          boardOrientation={puzzle.playerColor}
+          customSquareStyles={customSquareStyles()}
+          boardWidth={400}
+          areArrowsAllowed={true}
+          customBoardStyle={{
+            borderRadius: "4px",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+          }}
+        />
+      </div>
+      
+      <div className="flex justify-between items-center">
+        <div className="flex space-x-2">
+          <Button 
+            onClick={handleReset} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center"
+          >
+            <RefreshCw size={16} className="mr-1" />
+            Reset
+          </Button>
+          
+          <Button 
+            onClick={handleShowHint} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center"
+            disabled={status === "solved"}
+          >
+            <HelpCircle size={16} className="mr-1" />
+            Hint
+          </Button>
+        </div>
+        
+        <div className="text-sm">
+          {status === "initial" && !initialMoveMade && (
+            <span className="text-muted-foreground">Opponent is moving...</span>
+          )}
+          {status === "initial" && initialMoveMade && (
+            <span className="text-muted-foreground">Find the best move!</span>
+          )}
+          {status === "correct" && (
+            <span className="flex items-center text-green-500">
+              <CheckCircle size={16} className="mr-1" />
+              Correct! Find the next move.
+            </span>
+          )}
+          {status === "incorrect" && (
+            <span className="flex items-center text-red-500">
+              <AlertCircle size={16} className="mr-1" />
+              Try again
+            </span>
+          )}
+          {status === "solved" && (
+            <span className="flex items-center text-green-500">
+              <CheckCircle size={16} className="mr-1" />
+              Puzzle solved!
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
