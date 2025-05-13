@@ -1,3 +1,4 @@
+// chess-elo-frontend/components/ui/ChessPuzzle.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -24,8 +25,38 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
   // Store the opponent's move for highlighting
   const [opponentMove, setOpponentMove] = useState<PuzzleMove | null>(null);
   
+  // Ref for the chessboard container to measure its width
+  const boardContainerRef = useRef<HTMLDivElement>(null);
+  const [boardWidth, setBoardWidth] = useState(400); // Default width
+  
   // Timeout reference for animations
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update board width based on container size
+  useEffect(() => {
+    const updateBoardWidth = () => {
+      if (boardContainerRef.current) {
+        // Get the container width
+        const containerWidth = boardContainerRef.current.clientWidth;
+        // Set a maximum width to prevent the board from getting too large
+        const maxWidth = 600;
+        // Calculate the new board width (subtract padding if needed)
+        const newWidth = Math.min(containerWidth, maxWidth);
+        setBoardWidth(newWidth);
+      }
+    };
+
+    // Initial width calculation
+    updateBoardWidth();
+
+    // Update width on window resize
+    window.addEventListener('resize', updateBoardWidth);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', updateBoardWidth);
+    };
+  }, []);
 
   // Setup puzzle when it changes
   useEffect(() => {
@@ -263,22 +294,25 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
 
   return (
     <div className="flex flex-col space-y-4">
-      <div className="w-full max-w-md mx-auto">
-        <Chessboard 
-          position={game.fen()} 
-          onPieceDrop={onDrop}
-          boardOrientation={puzzle.playerColor}
-          customSquareStyles={customSquareStyles()}
-          boardWidth={400}
-          areArrowsAllowed={true}
-          customBoardStyle={{
-            borderRadius: "4px",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
-          }}
-        />
+      {/* Board container with reference for measuring width */}
+      <div className="w-full" ref={boardContainerRef}>
+        <div className="mx-auto" style={{ maxWidth: `${boardWidth}px` }}>
+          <Chessboard 
+            position={game.fen()} 
+            onPieceDrop={onDrop}
+            boardOrientation={puzzle.playerColor}
+            customSquareStyles={customSquareStyles()}
+            boardWidth={boardWidth}
+            areArrowsAllowed={true}
+            customBoardStyle={{
+              borderRadius: "4px",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+            }}
+          />
+        </div>
       </div>
       
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
         <div className="flex space-x-2">
           <Button 
             onClick={handleReset} 
@@ -302,32 +336,7 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
           </Button>
         </div>
         
-        <div className="text-sm">
-          {status === "initial" && !initialMoveMade && (
-            <span className="text-muted-foreground">Opponent is moving...</span>
-          )}
-          {status === "initial" && initialMoveMade && (
-            <span className="text-muted-foreground">Find the best move!</span>
-          )}
-          {status === "correct" && (
-            <span className="flex items-center text-green-500">
-              <CheckCircle size={16} className="mr-1" />
-              Correct! Find the next move.
-            </span>
-          )}
-          {status === "incorrect" && (
-            <span className="flex items-center text-red-500">
-              <AlertCircle size={16} className="mr-1" />
-              Try again
-            </span>
-          )}
-          {status === "solved" && (
-            <span className="flex items-center text-green-500">
-              <CheckCircle size={16} className="mr-1" />
-              Puzzle solved!
-            </span>
-          )}
-        </div>
+
       </div>
     </div>
   );
