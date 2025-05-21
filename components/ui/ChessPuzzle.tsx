@@ -8,19 +8,33 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle, RefreshCw, HelpCircle } from "lucide-react";
 import { ChessPuzzleData, PuzzleMove } from "@/data/types";
 
-interface ChessPuzzleProps {
-  puzzle: ChessPuzzleData;
-  onSolve?: () => void;
-  onFail?: () => void;
+interface FSRSStatus {
+  difficulty: number;
+  stability: number;
+  retrievability: number;
+  next_review_date: string;
+  last_attempted: string;
+  attempts_count: number;
 }
 
-export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
+interface ChessPuzzleProps {
+  puzzle: ChessPuzzleData;
+  onSolve?: (triesCount: number, hintUsed: boolean) => void;
+  onFail?: () => void;
+  attemptHistory?: FSRSStatus;
+}
+
+export function ChessPuzzle({ puzzle, onSolve, onFail, attemptHistory }: ChessPuzzleProps) {
   // Game state
   const [game, setGame] = useState<Chess>(new Chess());
   const [currentSolutionIndex, setCurrentSolutionIndex] = useState(0);
   const [status, setStatus] = useState<"initial" | "correct" | "incorrect" | "solved">("initial");
   const [showHint, setShowHint] = useState(false);
   const [initialMoveMade, setInitialMoveMade] = useState(false);
+  
+  // FSRS tracking state
+  const [triesCount, setTriesCount] = useState(0);
+  const [hintUsed, setHintUsed] = useState(false);
   
   // Store the opponent's move for highlighting
   const [opponentMove, setOpponentMove] = useState<PuzzleMove | null>(null);
@@ -70,6 +84,10 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
     setStatus("initial");
     setShowHint(false);
     setInitialMoveMade(false);
+    
+    // Reset FSRS tracking for new puzzle
+    setTriesCount(0);
+    setHintUsed(false);
     
     // Load the starting position
     const initialGame = new Chess(puzzle.startFEN);
@@ -147,7 +165,7 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
           // Puzzle solved - no more moves
           setGame(gameCopy);
           setStatus("solved");
-          onSolve?.();
+          onSolve?.(triesCount, hintUsed);
           return true;
         } else {
           // Make the opponent's next move automatically
@@ -173,6 +191,7 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
       } else {
         // Incorrect move
         setStatus("incorrect");
+        setTriesCount(prev => prev + 1); // Increment tries count for FSRS
         onFail?.();
         
         // Reset to the position after the opponent's initial move
@@ -183,7 +202,7 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
       console.error("Error making move:", error);
       return false;
     }
-  }, [game, puzzle.solution, currentSolutionIndex, isCorrectMove, onSolve, onFail]);
+  }, [game, puzzle.solution, currentSolutionIndex, isCorrectMove, onSolve, onFail, triesCount, hintUsed]);
 
   // Reset to the position after the opponent's move
   const resetToOpponentMove = useCallback(() => {
@@ -225,6 +244,7 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
   // Show hint
   const handleShowHint = useCallback(() => {
     setShowHint(true);
+    setHintUsed(true); // Track hint usage for FSRS
   }, []);
 
   // Reset the puzzle
@@ -237,6 +257,10 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
     setCurrentSolutionIndex(0);
     setStatus("initial");
     setShowHint(false);
+    
+    // Reset FSRS tracking on manual reset
+    setTriesCount(0);
+    setHintUsed(false);
     
     // Start from the beginning
     const resetGame = new Chess(puzzle.startFEN);
@@ -336,8 +360,44 @@ export function ChessPuzzle({ puzzle, onSolve, onFail }: ChessPuzzleProps) {
           </Button>
         </div>
         
-
+        {/* FSRS status indicator */}
+        {attemptHistory && (
+          <div className="text-xs text-muted-foreground">
+            {attemptHistory.attempts_count > 0 ? (
+              <div className="flex items-center space-x-2">
+                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-500 rounded-full">
+                  Reviewed {attemptHistory.attempts_count} time{attemptHistory.attempts_count !== 1 ? 's' : ''}
+                </span>
+                <span title={`Difficulty: ${attemptHistory?.difficulty ? attemptHistory.difficulty.toFixed(1) : 'N/A'}`}>
+                  D: {attemptHistory?.difficulty ? attemptHistory.difficulty.toFixed(1) : 'N/A'}
+                </span>
+                <span title={`Stability: ${attemptHistory?.stability ? attemptHistory.stability.toFixed(1) : 'N/A'} days`}>
+                  S: {attemptHistory?.stability ? attemptHistory.stability.toFixed(1) : 'N/A'}d
+                </span>
+                <span title={`Retrievability: ${attemptHistory?.retrievability ? (attemptHistory.retrievability * 100).toFixed(0) : 'N/A'}%`}>
+                  R: {attemptHistory?.retrievability ? (attemptHistory.retrievability * 100).toFixed(0) : 'N/A'}%
+                </span>
+              </div>
+            ) : (
+              <span className="px-2 py-0.5 bg-green-500/20 text-green-500 rounded-full">
+                New Puzzle
+              </span>
+            )}
+          </div>
+        )}
       </div>
+      
+      {/* Current attempt stats (if puzzle is in progress) */}
+      {status !== "solved" && (triesCount > 0 || hintUsed) && (
+        <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
+          {triesCount > 0 && (
+            <span className="text-amber-500">Incorrect attempts: {triesCount}</span>
+          )}
+          {hintUsed && (
+            <span className="text-blue-500">Hint used</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
