@@ -1,3 +1,4 @@
+// components/ui/MainNavigation.tsx
 import Link from "next/link";
 import {
   NavigationMenu,
@@ -30,9 +31,9 @@ export function MainNavigation() {
         <NavigationMenu>
           <NavigationMenuList>
             <NavigationMenuItem>
-              <Link href="/analysis" legacyBehavior passHref>
+              <Link href="/daily" legacyBehavior passHref>
                 <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                  Analysis
+                  Daily Puzzles
                 </NavigationMenuLink>
               </Link>
             </NavigationMenuItem>
