@@ -10,9 +10,9 @@ export interface PuzzleMove {
 
 export interface ChessPuzzleData {
   id: string;
-  player_username?: string; // Optional to maintain backward compatibility
-  opponent_username?: string; // Optional for backward compatibility
-  game_date?: string; // Optional for backward compatibility
+  player_username: string;
+  opponent_username: string;
+  game_date: string;
   playerColor: PlayerColor;
   startFEN: string;
   opponentMove: PuzzleMove;
@@ -20,6 +20,7 @@ export interface ChessPuzzleData {
   rating: string;
   themes: string[];
   gameUrl: string;
+  is_new?: boolean; // Added for daily puzzles
 }
 
 export interface PuzzlesData {
@@ -40,6 +41,7 @@ export interface ApiPuzzle {
   rating: number;
   themes: string[];
   game_url: string;
+  is_new?: boolean; // Added for daily puzzles
 }
 
 export interface ApiPagination {
@@ -54,4 +56,31 @@ export interface ApiResponse {
   displayed_puzzles: number;
   puzzles: ApiPuzzle[];
   pagination: ApiPagination;
+}
+
+export interface FSRSStatus {
+  difficulty: number;
+  stability: number;
+  retrievability: number;
+  next_review_date: string;
+  last_attempted?: string;
+  attempts_count?: number;
+}
+
+export interface DailyProgress {
+  new_puzzles_seen: number;
+  reviews_done: number;
+  total_done: number;
+  new_remaining: number;
+  reviews_remaining: number;
+  total_remaining: number;
+  new_limit: number;
+  total_limit: number;
+}
+
+export interface DailyPuzzlesResponse {
+  username: string;
+  progress: DailyProgress;
+  puzzles_count: number;
+  puzzles: ApiPuzzle[];
 }
