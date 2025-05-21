@@ -27,6 +27,27 @@ import {
   ApiPuzzle, 
   ApiResponse 
 } from "@/data/types";
+import { FSRSStatusCard } from "@/components/ui/FSRSStatusCard";
+
+interface FSRSStatus {
+  difficulty: number;
+  stability: number;
+  retrievability: number;
+  next_review_date: string;
+  last_attempted: string;
+  attempts_count: number;
+}
+
+interface FSRSPuzzleAttempt {
+  attempt_id: string;
+  puzzle_id: string;
+  player_username: string;
+  timestamp: string;
+  tries_count: number;
+  hint_used: boolean;
+  solved: boolean;
+  fsrs_status: FSRSStatus;
+}
 
 export default function AnalysisPage() {
   const [puzzles, setPuzzles] = useState<ChessPuzzleData[]>([]);
@@ -42,6 +63,10 @@ export default function AnalysisPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPuzzles, setTotalPuzzles] = useState(0);
+
+  // FSRS state
+  const [puzzleAttemptHistory, setPuzzleAttemptHistory] = useState<Record<string, FSRSStatus>>({});
+  const [isLoadingFSRS, setIsLoadingFSRS] = useState(false);
 
   const currentPuzzle = puzzles[currentPuzzleIndex];
 
@@ -113,12 +138,141 @@ export default function AnalysisPage() {
     }
   };
 
+  // Fetch FSRS attempt history for a user
+  const fetchFSRSAttemptHistory = async (username: string) => {
+    setIsLoadingFSRS(true);
+    try {
+      const response = await fetch(
+        `https://chess-elo-api-kalel1130.pythonanywhere.com/api/puzzles/attempts/?player_username=${username}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`FSRS history fetch failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Convert the array of attempts to a record keyed by puzzle_id
+      const attemptsByPuzzle: Record<string, FSRSStatus> = {};
+      
+      data.attempts.forEach((attempt: FSRSPuzzleAttempt) => {
+        attemptsByPuzzle[attempt.puzzle_id] = {
+          ...attempt.fsrs_status,
+          last_attempted: attempt.timestamp,
+          attempts_count: (attemptsByPuzzle[attempt.puzzle_id]?.attempts_count || 0) + 1
+        };
+      });
+      
+      setPuzzleAttemptHistory(attemptsByPuzzle);
+    } catch (error) {
+      console.error("Error fetching FSRS history:", error);
+    } finally {
+      setIsLoadingFSRS(false);
+    }
+  };
+
+  // Submit FSRS attempt when a puzzle is solved
+  const submitFSRSAttempt = async (
+    puzzleId: string, 
+    triesCount: number, 
+    hintUsed: boolean, 
+    solved: boolean
+  ) => {
+    try {
+      const response = await fetch(
+        `https://chess-elo-api-kalel1130.pythonanywhere.com/api/puzzles/attempts/fsrs/`, 
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            puzzle_id: puzzleId,
+            player_username: "kalel1130", // Replace with dynamic username when available
+            tries_count: triesCount,
+            hint_used: hintUsed,
+            solved: solved,
+            // rating is omitted so it's determined automatically
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`FSRS attempt submission failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Update local state with the new FSRS status
+      setPuzzleAttemptHistory(prev => ({
+        ...prev,
+        [puzzleId]: {
+          ...data.fsrs_status,
+          last_attempted: new Date().toISOString(),
+          attempts_count: (prev[puzzleId]?.attempts_count || 0) + 1
+        }
+      }));
+      
+      return data;
+    } catch (error) {
+      console.error("Error submitting FSRS attempt:", error);
+      return null;
+    }
+  };
+
+  // Find a puzzle by ID
+  const findPuzzleById = async (puzzleId: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // First try to find the puzzle in the current page
+      const puzzleInCurrentPage = puzzles.find(p => p.id === puzzleId);
+      if (puzzleInCurrentPage) {
+        setCurrentPuzzleIndex(puzzles.indexOf(puzzleInCurrentPage));
+        setLoading(false);
+        return;
+      }
+      
+      // If not found, fetch the specific puzzle from the API
+      const response = await fetch(
+        `https://chess-elo-api-kalel1130.pythonanywhere.com/api/puzzles/${puzzleId}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch puzzle: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Convert the API puzzle to app format
+      const convertedPuzzle = convertApiPuzzle(data.puzzle);
+      
+      // Add this puzzle to the current page
+      setPuzzles([convertedPuzzle, ...puzzles.slice(0, puzzles.length - 1)]);
+      setCurrentPuzzleIndex(0);
+    } catch (error) {
+      console.error("Error fetching puzzle by ID:", error);
+      setError("Failed to load the requested puzzle. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle selecting a due puzzle
+  const handleSelectDuePuzzle = (puzzleId: string) => {
+    findPuzzleById(puzzleId);
+  };
+
   // Initial fetch
   useEffect(() => {
     fetchPuzzles(1);
+    // Fetch FSRS attempt history for the current user
+    fetchFSRSAttemptHistory("kalel1130"); // Replace with dynamic username when available
   }, []);
 
-  const handlePuzzleSolved = () => {
+  // Updated puzzle solved handler with FSRS support
+  const handlePuzzleSolved = (triesCount = 0, hintUsed = false) => {
     if (currentPuzzle && !solvedPuzzleIds.has(currentPuzzle.id)) {
       // Only count puzzles solved for the first time
       const updatedSolved = new Set<string>([
@@ -133,6 +287,11 @@ export default function AnalysisPage() {
         "solvedPuzzles",
         JSON.stringify(Array.from(updatedSolved))
       );
+    }
+    
+    // Submit FSRS attempt data
+    if (currentPuzzle) {
+      submitFSRSAttempt(currentPuzzle.id, triesCount, hintUsed, true);
     }
   };
 
@@ -267,6 +426,21 @@ export default function AnalysisPage() {
                       </span>
                     ))}
                   </div>
+                  
+                  {/* FSRS status indicators */}
+                  {puzzleAttemptHistory[currentPuzzle.id] ? (
+                    <div className="flex items-center mt-1">
+                      <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-500 rounded-full">
+                        Reviewed {puzzleAttemptHistory[currentPuzzle.id].attempts_count} time{puzzleAttemptHistory[currentPuzzle.id].attempts_count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center mt-1">
+                      <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-500 rounded-full">
+                        New Puzzle
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex space-x-2">
@@ -301,7 +475,8 @@ export default function AnalysisPage() {
               ) : (
                 <ChessPuzzle
                   puzzle={currentPuzzle}
-                  onSolve={handlePuzzleSolved}
+                  onSolve={(triesCount, hintUsed) => handlePuzzleSolved(triesCount, hintUsed)}
+                  attemptHistory={puzzleAttemptHistory[currentPuzzle.id]}
                 />
               )}
             </CardContent>
@@ -311,6 +486,7 @@ export default function AnalysisPage() {
                 Puzzle {currentPuzzleNumber} of {totalPuzzles} (Page {currentPage} of {totalPages})
               </span>
               <a
+              
                 href={currentPuzzle.gameUrl}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -394,6 +570,14 @@ export default function AnalysisPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* FSRS Status Card */}
+          <FSRSStatusCard 
+            username="kalel1130" // Replace with dynamic username when available
+            currentPuzzleId={currentPuzzle.id}
+            attemptHistory={puzzleAttemptHistory}
+            onSelectPuzzle={handleSelectDuePuzzle}
+          />
 
           <Card className="mb-4">
             <CardHeader>
