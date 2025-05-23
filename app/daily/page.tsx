@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useUser, SignInButton } from '@clerk/nextjs';
 import { ChessPuzzle } from "@/components/ui/ChessPuzzle";
 import {
   Card,
@@ -32,9 +33,8 @@ import {
   DailyPuzzlesResponse
 } from "@/data/types";
 
-
-
 export default function DailyPage() {
+  const { isLoaded, isSignedIn, user } = useUser();
   const [puzzles, setPuzzles] = useState<ChessPuzzleData[]>([]);
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -49,7 +49,60 @@ export default function DailyPage() {
   const [noMorePuzzles, setNoMorePuzzles] = useState(false);
 
   const currentPuzzle = puzzles[currentPuzzleIndex];
-  const username = "kalel1130"; // Replace with dynamic username when available
+  
+  // Get username from Clerk user
+  const username = user?.username || user?.emailAddresses[0]?.emailAddress?.split('@')[0] || '';
+
+  // Show loading while Clerk loads
+  if (!isLoaded) {
+    return (
+      <div className="container mx-auto py-6 px-4">
+        <div className="flex justify-center items-center h-64">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-2 text-gray-500">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in prompt if not authenticated
+  if (!isSignedIn) {
+    return (
+      <div className="container mx-auto py-6 px-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign In Required</CardTitle>
+            <CardDescription>
+              Please sign in to access your daily puzzles and track your progress.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SignInButton>
+              <Button>
+                Sign In to Continue
+              </Button>
+            </SignInButton>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Don't start fetching until we have a username
+  if (!username) {
+    return (
+      <div className="container mx-auto py-6 px-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Setup Required</CardTitle>
+            <CardDescription>
+              Please set up your username in your profile to continue.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   const handleSelectPuzzle = (puzzleId: string) => {
     console.log("Puzzle selection not implemented in daily mode");
@@ -79,6 +132,8 @@ export default function DailyPage() {
 
   // Fetch daily puzzles
   const fetchDailyPuzzles = async () => {
+    if (!username) return;
+    
     setLoading(true);
     setError(null);
 
@@ -117,6 +172,8 @@ export default function DailyPage() {
 
   // Fetch FSRS attempt history
   const fetchFSRSAttemptHistory = async () => {
+    if (!username) return;
+    
     try {
       const response = await fetch(
         `https://chess-elo-api-kalel1130.pythonanywhere.com/api/puzzles/attempts/?player_username=${username}`
@@ -148,77 +205,81 @@ export default function DailyPage() {
   };
 
   // Submit FSRS attempt
-const submitFSRSAttempt = async (
-  puzzleId: string,
-  triesCount: number,
-  hintUsed: boolean,
-  solved: boolean
-) => {
-  try {
-    const response = await fetch(
-      `https://chess-elo-api-kalel1130.pythonanywhere.com/api/puzzles/attempts/fsrs/`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          puzzle_id: puzzleId,
-          player_username: username,
-          tries_count: triesCount,
-          hint_used: hintUsed,
-          solved: solved,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        `FSRS attempt submission failed with status: ${response.status}`
+  const submitFSRSAttempt = async (
+    puzzleId: string,
+    triesCount: number,
+    hintUsed: boolean,
+    solved: boolean
+  ) => {
+    if (!username) return null;
+    
+    try {
+      const response = await fetch(
+        `https://chess-elo-api-kalel1130.pythonanywhere.com/api/puzzles/attempts/fsrs/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            puzzle_id: puzzleId,
+            player_username: username,
+            tries_count: triesCount,
+            hint_used: hintUsed,
+            solved: solved,
+          }),
+        }
       );
+
+      if (!response.ok) {
+        throw new Error(
+          `FSRS attempt submission failed with status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("FSRS response data:", data); // Add logging to see the exact response
+
+      // Update FSRS history with the new status
+      setPuzzleAttemptHistory((prev) => ({
+        ...prev,
+        [puzzleId]: {
+          ...data.fsrs_status,
+          last_attempted: new Date().toISOString(),
+          attempts_count: (prev[puzzleId]?.attempts_count || 0) + 1,
+        },
+      }));
+
+      // Create a safe version of the daily progress with defaults
+      if (data.daily_progress) {
+        const safeProgress = {
+          new_puzzles_seen: data.daily_progress.new_puzzles_seen || 0,
+          reviews_done: data.daily_progress.reviews_done || 0,
+          total_done: data.daily_progress.total_done || 0,
+          new_remaining: data.daily_progress.new_remaining || 0,
+          reviews_remaining: data.daily_progress.reviews_remaining || 0,
+          total_remaining: data.daily_progress.total_remaining || 0,
+          new_limit: data.daily_progress.new_limit || 25,
+          total_limit: data.daily_progress.total_limit || 50
+        };
+        
+        // Update daily progress with safe values
+        setDailyProgress(safeProgress);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error submitting FSRS attempt:", error);
+      return null;
     }
-
-    const data = await response.json();
-    console.log("FSRS response data:", data); // Add logging to see the exact response
-
-    // Update FSRS history with the new status
-    setPuzzleAttemptHistory((prev) => ({
-      ...prev,
-      [puzzleId]: {
-        ...data.fsrs_status,
-        last_attempted: new Date().toISOString(),
-        attempts_count: (prev[puzzleId]?.attempts_count || 0) + 1,
-      },
-    }));
-
-    // Create a safe version of the daily progress with defaults
-    if (data.daily_progress) {
-      const safeProgress = {
-        new_puzzles_seen: data.daily_progress.new_puzzles_seen || 0,
-        reviews_done: data.daily_progress.reviews_done || 0,
-        total_done: data.daily_progress.total_done || 0,
-        new_remaining: data.daily_progress.new_remaining || 0,
-        reviews_remaining: data.daily_progress.reviews_remaining || 0,
-        total_remaining: data.daily_progress.total_remaining || 0,
-        new_limit: data.daily_progress.new_limit || 25,
-        total_limit: data.daily_progress.total_limit || 50
-      };
-      
-      // Update daily progress with safe values
-      setDailyProgress(safeProgress);
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error submitting FSRS attempt:", error);
-    return null;
-  }
-};
+  };
 
   // Reset daily progress
   // REMOVE FOR PRODUCTION: Reset daily progress function
   // This function is only for development/testing and should be removed before production
   const resetDailyProgress = async () => {
+    if (!username) return;
+    
     setResetInProgress(true);
 
     try {
@@ -248,11 +309,13 @@ const submitFSRSAttempt = async (
     }
   };
 
-  // Initial fetch
+  // Initial fetch - only when username is available
   useEffect(() => {
-    fetchDailyPuzzles();
-    fetchFSRSAttemptHistory();
-  }, []);
+    if (username) {
+      fetchDailyPuzzles();
+      fetchFSRSAttemptHistory();
+    }
+  }, [username]);
 
   // Handle puzzle solved
   const handlePuzzleSolved = (triesCount = 0, hintUsed = false) => {
