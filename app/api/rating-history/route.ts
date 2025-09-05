@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const BASE = "https://chess-elo-api-kalel1130.pythonanywhere.com";
 
 export async function GET(request: Request) {
