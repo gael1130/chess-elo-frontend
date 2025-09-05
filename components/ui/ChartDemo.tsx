@@ -585,10 +585,26 @@ export function Component() {
                   margin={{
                     top: 5,
                     right: 15,
-                    left: 15,
+                    left: 40,
                     bottom: 5,
                   }}
                 >
+                  {/* Define gradients for each player */}
+                  <defs>
+                    {players.map((player) => (
+                      <linearGradient
+                        key={`gradient-${player.username}`}
+                        id={`gradient-${player.username}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor={player.color} stopOpacity={0.2} />
+                        <stop offset="100%" stopColor={player.color} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
+                  </defs>
                   <CartesianGrid
                     strokeDasharray="none"
                     vertical={false}
