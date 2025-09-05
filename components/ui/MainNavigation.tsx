@@ -1,6 +1,7 @@
 // components/ui/MainNavigation.tsx
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -47,9 +48,7 @@ export function MainNavigation() {
         <div className="flex items-center">
           <SignedOut>
             <SignInButton>
-              <button className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-                Sign In
-              </button>
+              <Button variant="primary-green">Sign In</Button>
             </SignInButton>
           </SignedOut>
           <SignedIn>

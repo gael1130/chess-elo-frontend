@@ -27,6 +27,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Button } from "@/components/ui/button";
 
 // Interface for the API response
 interface GameData {
@@ -493,25 +494,27 @@ export function Component() {
                 </label>
               </div>
 
-              <button
+              <Button
                 type="submit"
-                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md flex items-center space-x-1 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1"
+                variant="primary-green"
+                size="sm"
                 disabled={isLoading}
               >
                 {isLoading ? 'Loading...' : 'Search'}
                 {!isLoading && <Search className="h-3 w-3 ml-1" />}
-              </button>
+              </Button>
               
               {players.length > 0 && (
-                <button
+                <Button
                   type="button"
                   onClick={handleAddPlayer}
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded-md flex items-center space-x-1 hover:bg-green-700 focus-visible:outline-none focus-visible:ring-1 transition-colors"
+                  variant="primary-green"
+                  size="sm"
                   disabled={isLoading}
                 >
                   Add Player
                   <UserPlus className="h-3 w-3 ml-1" />
-                </button>
+                </Button>
               )}
             </form>
             
