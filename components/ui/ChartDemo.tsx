@@ -590,14 +590,15 @@ export function Component() {
                   }}
                 >
                   <CartesianGrid
-                    strokeDasharray="3 3"
+                    strokeDasharray="none"
                     vertical={false}
                     // Only show horizontal lines at our specific y-values
                     horizontalCoordinatesGenerator={(props) => {
                       const { yAxis, width } = props;
                       return customTicks.map((tick) => yAxis.scale(tick));
                     }}
-                    stroke="var(--color-grid)"
+                    stroke="rgba(255, 255, 255, 0.1)"
+                    opacity={0.5}
                   />
                   <XAxis
                     dataKey="gameNumber"
