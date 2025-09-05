@@ -27,6 +27,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Button } from "@/components/ui/button";
 
 // Interface for the API response
 interface GameData {
@@ -66,14 +67,14 @@ interface PlayerData {
   change: number;
 }
 
-// Chart colors for different players
+// Chart colors for different players (updated to match Figma design)
 const PLAYER_COLORS = [
-  "hsl(221.2 83.2% 53.3%)", // Blue
-  "hsl(346.8 77.2% 49.8%)", // Red
-  "hsl(142.1 76.2% 36.3%)", // Green
-  "hsl(35.5 91.7% 54.3%)",  // Orange
-  "hsl(262.1 83.3% 57.8%)", // Purple
-  "hsl(191, 91%, 36.5%)",   // Cyan
+  "#83DEFC", // Primary Cyan (from Figma)
+  "#60D394", // Green
+  "#FFD23F", // Yellow
+  "#FF6B9D", // Pink
+  "#C77DFF", // Purple
+  "#FFA07A", // Light Orange
 ];
 
 const createChartConfig = (players: PlayerData[]) => {
@@ -190,7 +191,7 @@ export function Component() {
       // Step 1: First check if we can get the rating history directly
       // (this will work if the user exists in our database)
       const ratingResponse = await fetch(
-        `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/rating-history/?time_class=${timeClass}`
+        `/api/rating-history?username=${encodeURIComponent(username)}&time_class=${encodeURIComponent(timeClass)}`
       );
 
       // If player exists in the database
@@ -200,14 +201,14 @@ export function Component() {
         // Step 2: Check if there are any new games to fetch for existing player
         setFetchStatus("Checking for new games...");
         const scrapeResponse = await fetch(
-          `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/scrape-games/?only_new=true`
+          `/api/scrape-games?username=${encodeURIComponent(username)}&only_new=true`
         );
 
         if (scrapeResponse.ok) {
           // If new games were found, refresh the data
           setFetchStatus("New games found, updating...");
           const refreshResponse = await fetch(
-            `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/rating-history/?time_class=${timeClass}`
+            `/api/rating-history?username=${encodeURIComponent(username)}&time_class=${encodeURIComponent(timeClass)}`
           );
 
           if (refreshResponse.ok) {
@@ -228,7 +229,7 @@ export function Component() {
         );
 
         const scrapeAllResponse = await fetch(
-          `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/scrape-games/`
+          `/api/scrape-games?username=${encodeURIComponent(username)}`
         );
 
         if (!scrapeAllResponse.ok) {
@@ -242,7 +243,7 @@ export function Component() {
         // Successfully scraped data, now get the rating history
         setFetchStatus("Data obtained! Generating rating history...");
         const newDataResponse = await fetch(
-          `https://chess-elo-api-kalel1130.pythonanywhere.com/api/player/${username}/rating-history/?time_class=${timeClass}`
+          `/api/rating-history?username=${encodeURIComponent(username)}&time_class=${encodeURIComponent(timeClass)}`
         );
 
         if (!newDataResponse.ok) {
@@ -493,25 +494,27 @@ export function Component() {
                 </label>
               </div>
 
-              <button
+              <Button
                 type="submit"
-                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md flex items-center space-x-1 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1"
+                variant="primary-green"
+                size="sm"
                 disabled={isLoading}
               >
                 {isLoading ? 'Loading...' : 'Search'}
                 {!isLoading && <Search className="h-3 w-3 ml-1" />}
-              </button>
+              </Button>
               
               {players.length > 0 && (
-                <button
+                <Button
                   type="button"
                   onClick={handleAddPlayer}
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded-md flex items-center space-x-1 hover:bg-green-700 focus-visible:outline-none focus-visible:ring-1 transition-colors"
+                  variant="primary-green"
+                  size="sm"
                   disabled={isLoading}
                 >
                   Add Player
                   <UserPlus className="h-3 w-3 ml-1" />
-                </button>
+                </Button>
               )}
             </form>
             
@@ -546,7 +549,7 @@ export function Component() {
       </Card>
 
       {/* Rating chart */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden bg-slate-900/20 border-white/5">
         <CardHeader className="py-3 px-4 pb-1">
           <CardTitle className="text-base">
             Chess Rating History
@@ -559,7 +562,7 @@ export function Component() {
             {players.length > 1 && ` - ${players.length} players`}
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-2 px-3">
+        <CardContent className="pt-2 px-3 bg-slate-900/10">
           {isLoading ? (
             <div className="flex flex-col justify-center items-center h-[250px]">
               <div className="text-muted-foreground text-sm mb-2">
@@ -582,19 +585,36 @@ export function Component() {
                   margin={{
                     top: 5,
                     right: 15,
-                    left: 15,
+                    left: 40,
                     bottom: 5,
                   }}
                 >
+                  {/* Define gradients for each player */}
+                  <defs>
+                    {players.map((player) => (
+                      <linearGradient
+                        key={`gradient-${player.username}`}
+                        id={`gradient-${player.username}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor={player.color} stopOpacity={0.2} />
+                        <stop offset="100%" stopColor={player.color} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
+                  </defs>
                   <CartesianGrid
-                    strokeDasharray="3 3"
+                    strokeDasharray="none"
                     vertical={false}
                     // Only show horizontal lines at our specific y-values
                     horizontalCoordinatesGenerator={(props) => {
                       const { yAxis, width } = props;
                       return customTicks.map((tick) => yAxis.scale(tick));
                     }}
-                    stroke="var(--color-grid)"
+                    stroke="rgba(255, 255, 255, 0.1)"
+                    opacity={0.5}
                   />
                   <XAxis
                     dataKey="gameNumber"
@@ -609,7 +629,7 @@ export function Component() {
                     angle={screenIsMobile ? -45 : 0}
                     textAnchor={screenIsMobile ? "end" : "middle"}
                     height={screenIsMobile ? 60 : 30}
-                    tick={{ fill: "var(--color-text)" }}
+                    tick={{ fill: "rgba(255, 255, 255, 0.5)", fontSize: 10 }}
                   />
                   <YAxis
                     width={40}
@@ -620,7 +640,7 @@ export function Component() {
                     ticks={customTicks}
                     // Set domain to include a better range for all players
                     domain={chartDomain}
-                    tick={{ fill: "var(--color-text)" }}
+                    tick={{ fill: "rgba(255, 255, 255, 0.5)", fontSize: 10 }}
                   />
                   {/* Custom tooltip to show all players' ratings */}
                   <ChartTooltip
@@ -642,7 +662,7 @@ export function Component() {
                       const dateLabel = payload.date;
                       
                       return (
-                        <div className="p-2 rounded-md border shadow-md bg-background text-foreground text-sm">
+                        <div className="p-2 rounded-md border border-white/10 shadow-md bg-slate-900/90 text-white text-sm">
                           <div className="font-medium pb-1 mb-1 border-b">
                             {gameLabel} - {dateLabel}
                           </div>
@@ -685,10 +705,10 @@ export function Component() {
                       dataKey={player.username}
                       type="monotone"
                       name={player.username}
-                      fill={player.color}
-                      fillOpacity={0.3}
+                      fill={`url(#gradient-${player.username})`}
+                      fillOpacity={1}
                       stroke={player.color}
-                      strokeWidth={1.5}
+                      strokeWidth={3}
                       activeDot={{ 
                         stroke: player.color, 
                         strokeWidth: 1, 

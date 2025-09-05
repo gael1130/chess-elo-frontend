@@ -1,6 +1,9 @@
 // components/ui/MainNavigation.tsx
+"use client";
+
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -13,7 +16,7 @@ import {
 
 export function MainNavigation() {
   return (
-    <div className="flex justify-between items-center py-4 px-4 border-b">
+    <div className="flex justify-between items-center py-4 px-4 border-b border-slate-100">
       <div>
         <NavigationMenu>
           <NavigationMenuList>
@@ -47,9 +50,7 @@ export function MainNavigation() {
         <div className="flex items-center">
           <SignedOut>
             <SignInButton>
-              <button className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-                Sign In
-              </button>
+              <Button variant="primary-green">Sign In</Button>
             </SignInButton>
           </SignedOut>
           <SignedIn>

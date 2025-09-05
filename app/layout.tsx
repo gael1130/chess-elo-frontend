@@ -1,8 +1,8 @@
 import "./globals.css"
 import { ReactNode } from "react"
 import { Analytics } from "@vercel/analytics/react"
-import { MainNavigation } from "@/components/ui/MainNavigation"
 import { ClerkProvider } from '@clerk/nextjs'
+import { MainNavigation } from "@/components/ui/MainNavigation"
 
 interface RootLayoutProps {
   children: ReactNode
@@ -13,7 +13,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <ClerkProvider>
       <html lang="en">
         <head />
-        <body className="min-h-screen bg-slate-950 text-slate-50">
+        <body className="min-h-screen app-surface text-slate-50">
           <MainNavigation />
           {children}
           <Analytics />
