@@ -562,7 +562,7 @@ export function Component() {
             {players.length > 1 && ` - ${players.length} players`}
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-2 px-3">
+        <CardContent className="pt-2 px-3 bg-slate-900/10">
           {isLoading ? (
             <div className="flex flex-col justify-center items-center h-[250px]">
               <div className="text-muted-foreground text-sm mb-2">
