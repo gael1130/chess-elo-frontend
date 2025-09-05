@@ -662,7 +662,7 @@ export function Component() {
                       const dateLabel = payload.date;
                       
                       return (
-                        <div className="p-2 rounded-md border shadow-md bg-background text-foreground text-sm">
+                        <div className="p-2 rounded-md border border-white/10 shadow-md bg-slate-900/90 text-white text-sm">
                           <div className="font-medium pb-1 mb-1 border-b">
                             {gameLabel} - {dateLabel}
                           </div>
