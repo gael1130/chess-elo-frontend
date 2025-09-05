@@ -14,7 +14,7 @@ import {
 
 export function MainNavigation() {
   return (
-    <div className="flex justify-between items-center py-4 px-4 border-b">
+    <div className="flex justify-between items-center py-4 px-4 border-b border-slate-100">
       <div>
         <NavigationMenu>
           <NavigationMenuList>
