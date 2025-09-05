@@ -67,14 +67,14 @@ interface PlayerData {
   change: number;
 }
 
-// Chart colors for different players
+// Chart colors for different players (updated to match Figma design)
 const PLAYER_COLORS = [
-  "hsl(221.2 83.2% 53.3%)", // Blue
-  "hsl(346.8 77.2% 49.8%)", // Red
-  "hsl(142.1 76.2% 36.3%)", // Green
-  "hsl(35.5 91.7% 54.3%)",  // Orange
-  "hsl(262.1 83.3% 57.8%)", // Purple
-  "hsl(191, 91%, 36.5%)",   // Cyan
+  "#83DEFC", // Primary Cyan (from Figma)
+  "#60D394", // Green
+  "#FFD23F", // Yellow
+  "#FF6B9D", // Pink
+  "#C77DFF", // Purple
+  "#FFA07A", // Light Orange
 ];
 
 const createChartConfig = (players: PlayerData[]) => {
