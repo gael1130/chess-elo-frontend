@@ -549,7 +549,7 @@ export function Component() {
       </Card>
 
       {/* Rating chart */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden bg-slate-900/20 border-white/5">
         <CardHeader className="py-3 px-4 pb-1">
           <CardTitle className="text-base">
             Chess Rating History
