@@ -613,7 +613,7 @@ export function Component() {
                     angle={screenIsMobile ? -45 : 0}
                     textAnchor={screenIsMobile ? "end" : "middle"}
                     height={screenIsMobile ? 60 : 30}
-                    tick={{ fill: "var(--color-text)" }}
+                    tick={{ fill: "rgba(255, 255, 255, 0.5)", fontSize: 10 }}
                   />
                   <YAxis
                     width={40}
@@ -624,7 +624,7 @@ export function Component() {
                     ticks={customTicks}
                     // Set domain to include a better range for all players
                     domain={chartDomain}
-                    tick={{ fill: "var(--color-text)" }}
+                    tick={{ fill: "rgba(255, 255, 255, 0.5)", fontSize: 10 }}
                   />
                   {/* Custom tooltip to show all players' ratings */}
                   <ChartTooltip
