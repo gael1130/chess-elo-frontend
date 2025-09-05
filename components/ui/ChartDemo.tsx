@@ -705,10 +705,10 @@ export function Component() {
                       dataKey={player.username}
                       type="monotone"
                       name={player.username}
-                      fill={player.color}
-                      fillOpacity={0.3}
+                      fill={`url(#gradient-${player.username})`}
+                      fillOpacity={1}
                       stroke={player.color}
-                      strokeWidth={1.5}
+                      strokeWidth={3}
                       activeDot={{ 
                         stroke: player.color, 
                         strokeWidth: 1, 
